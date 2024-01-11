@@ -1,0 +1,34 @@
+{
+    "environment_configs": [
+        {
+            "environment": "development",
+            "driver_details": [
+                {
+                    "kudu": [
+                        "/opt/cloudera/parcels/CDH/lib/kudu/kudu-spark2_2.11.jar"
+                    ]
+                }
+            ],
+            "kudu_masters": [
+                "kudu_master_1",
+                "kudu_master_2",
+                "kudu_master_3"
+            ]
+        },
+        {
+            "environment": "production",
+            "driver_details": [
+                {
+                    "kudu": [
+                        "/opt/cloudera/parcels/CDH/lib/kudu/kudu-spark2_2.11.jar"
+                    ]
+                }
+            ],
+            "kudu_masters": [
+                "kudu_master_1",
+                "kudu_master_2",
+                "kudu_master_3"
+            ]
+        }
+    ]
+}

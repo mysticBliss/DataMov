@@ -1,0 +1,27 @@
+{
+    "data_movements": [
+        {
+            "name": "hive-to-hive-voice-data",
+            "description": "DataFlow that loads sample hive table to hive",
+            "active": true,
+            "source_execution_date": null,
+            "source_frequency_value": null,
+            "source_frequency_unit": null,
+            "source_type":null,
+            "source_format": null,
+            "source_table": null,
+            "source_sql": "select '1' as a, '2' as b,  '3' as c",
+            "source_partition_column": null,
+            "source_fs_path": null,
+            "source_data_format": null,
+            "destination_type": "parquet",
+            "destination_mode": "overwrite",
+            "destination_table": "default.sample_etl",
+            "destination_partitions": [],
+            "destination_fs_path": null,
+            "destination_fs_func": null,
+            "destination_path": null,
+            "destination_sql": "SELECT a, b FROM"
+        }
+    ]
+}
