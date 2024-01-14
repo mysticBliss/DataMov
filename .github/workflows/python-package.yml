@@ -15,8 +15,7 @@ jobs:
     - name: Install Setup
       run: |
         echo $('PWD')
-        pip install setup.py
-        
+        pip install setup.py   
         pip install pyspark==2.4.3
         pip install pytest==4.5.0  
 
