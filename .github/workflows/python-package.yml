@@ -12,6 +12,20 @@ jobs:
       with:
         python-version: 2.7.18
 
+    - name: Install Setup
+      run: |
+        pip install -e .
+        pip install pyspark==2.4.3
+        pip install pytest==4.5.0  
+
     - name: Run tests
       run: |
         pytest
+
+    - name: Build wheel
+      run: |
+        python setup.py sdist bdist_wheel
+
+
+    
+
