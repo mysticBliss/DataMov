@@ -11,6 +11,12 @@ jobs:
       uses: MatteoH2O1999/setup-python@v2
       with:
         python-version: 2.7.18
+    
+    - name: Set working directory and list contents
+      run: |
+        cd DataMov
+        ls
+      working-directory: /home/runner/work/DataMov
 
     - name: Print current location
       run: |
