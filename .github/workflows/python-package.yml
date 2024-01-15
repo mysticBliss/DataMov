@@ -1,6 +1,6 @@
 name: DataMov CI
 
-on: [push, pull_request]
+on: [push]
 
 jobs:
   build:
@@ -14,7 +14,7 @@ jobs:
     
     - name: Set working directory and list contents
       run: |
-        cd DataMov
+        cd /home/runner/work/DataMov
         ls
       working-directory: /home/runner/work/DataMov
 
