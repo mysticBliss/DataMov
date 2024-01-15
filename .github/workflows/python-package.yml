@@ -12,6 +12,10 @@ jobs:
       with:
         python-version: 2.7.18
 
+    - name: Print current location
+      run: |
+        echo "Current location: $(pwd)"
+
     - name: Install Setup
       run: |
         python -m pip install .   
