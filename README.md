@@ -23,6 +23,14 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
+### Build Package
+
+To build the distributable wheel package:
+
+```console
+python setup.py bdist_wheel
+```
+
 ### Requirements
 - Python >= 3.8
 - PySpark >= 3.0.0
@@ -65,8 +73,16 @@ Example with **Great Expectations**:
 
 ### Run the data flow
 
+**Standard Execution:**
+
 ```console
 python main.py -f flow_name -c spark_config.json
+```
+
+**PySpark Submission:**
+
+```console
+pyspark --master yarn --conf spark.pyspark.virtualenv.enabled=true --conf spark.pyspark.virtualenv.type=native --conf spark.pyspark.virtualenv.bin.path=/path/to/datamov --conf spark.pyspark.python=/usr/bin/python3
 ```
 
 ## Testing
