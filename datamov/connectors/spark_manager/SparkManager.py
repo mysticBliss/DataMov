@@ -1,4 +1,6 @@
 from pyspark.sql import SparkSession
+from typing import Optional, Dict, Any
+from types import TracebackType
 
 from ...core.logger import Logger
 from ...core.data_flow import DataFlow
@@ -8,18 +10,18 @@ from ...core.data_movements import EnvironmentConfig
 logger = Logger().get_logger()
 
 
-class SparkManager(object):
+class SparkManager:
     """
     This is a class for managing Spark sessions.
     It provides methods for starting and stopping a Spark session, setting the log level, and adding configuration.
     """
 
-    def __init__(self, app_name, config=None):
+    def __init__(self, app_name: str, config: Optional[Dict[str, Any]] = None):
         self.app_name = app_name
         self.config = config if config else {}
-        self.spark = None
+        self.spark: Optional[SparkSession] = None
 
-    def __enter__(self):
+    def __enter__(self) -> SparkSession:
         try:
             builder = SparkSession.builder.appName(
                 self.app_name).enableHiveSupport()
@@ -34,7 +36,7 @@ class SparkManager(object):
                 "Error occurred while initializing Spark: %s", str(e))
             raise
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(self, exc_type: Optional[type], exc_value: Optional[BaseException], traceback: Optional[TracebackType]):
         try:
             if self.spark:
                 self.spark.stop()

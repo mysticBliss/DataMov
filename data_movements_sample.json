@@ -21,7 +21,13 @@
             "destination_fs_path": null,
             "destination_fs_func": null,
             "destination_path": null,
-            "destination_sql": "SELECT a, b FROM"
+            "destination_sql": "SELECT a, b FROM",
+            "expectations": [
+                {
+                    "type": "expect_column_values_to_not_be_null",
+                    "kwargs": {"column": "a"}
+                }
+            ]
         }
     ]
 }
