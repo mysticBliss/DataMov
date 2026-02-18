@@ -1,41 +1,31 @@
 name: DataMov CI
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
     - name: Set up Python
-      uses: MatteoH2O1999/setup-python@v2
+      uses: actions/setup-python@v4
       with:
-        python-version: 2.7.18
+        python-version: "3.12"
     
-    - name: Set working directory and list contents
+    - name: Install dependencies
       run: |
-        cd /home/runner/work/DataMov
-        ls
-      working-directory: /home/runner/work/DataMov
-
-    - name: Print current location
-      run: |
-        echo "Current location: $(pwd)"
-
-    - name: Install Setup
-      run: |
-        python -m pip install .   
-        pip install pyspark==2.4.3
-        pip install pytest==4.5.0  
+        python -m pip install --upgrade pip
+        python -m pip install setuptools wheel
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        pip install -e .
 
     - name: Run tests
       run: |
-        pytest
+        pytest tests/
 
     - name: Build wheel
       run: |
         python setup.py sdist bdist_wheel
-
-
-    
-
