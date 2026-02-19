@@ -81,6 +81,16 @@ def test_engine_run(spark, tmp_path):
         # It calls spark.sql("... temp_table_name").
         # If we return mock_df there, subsequent usage of mock_df.write should use our mock_writer.
 
+        # Configure mocks to ensure count() returns an integer,
+        # necessary when running in an environment where pyspark is mocked (like CI)
+        mock_df = MagicMock()
+        mock_df.count.return_value = 2
+
+        # When pyspark is mocked, `spark` fixture is a MagicMock.
+        # We need to ensure `spark.sql()` returns our `mock_df`.
+        spark.sql.return_value = mock_df
+        spark.createDataFrame.return_value = mock_df
+
         engine.run_flow()
 
         # Verify output
