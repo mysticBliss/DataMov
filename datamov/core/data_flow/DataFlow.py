@@ -48,6 +48,12 @@ class DataFlow:
 
 
     def to_dict(self) -> Dict[str, Any]:
+        """
+        Converts the DataFlow instance to a dictionary.
+
+        Returns:
+            Dict[str, Any]: A dictionary representation of the DataFlow instance.
+        """
         _dict = vars(self)
         logger.debug("DataFlow to Dictionary: {}".format(_dict))
         return _dict
@@ -55,6 +61,23 @@ class DataFlow:
 
     @property
     def generate_paths(self) -> List[str]:
+        """
+        Generates a list of source file paths based on the execution date and frequency.
+
+        If source_execution_date is provided, it returns a path formatted with that date.
+        If source_execution_date is None, it generates a list of dates going back
+        source_frequency_value days or months from today.
+
+        The paths are formatted using source_fs_path and source_data_format.
+        source_data_format is evaluated as a Python expression with 'dt', 'date', and 'timedelta'
+        explicitly provided in the local context.
+
+        Returns:
+            List[str]: A list of generated file paths.
+
+        Raises:
+            ValueError: If an invalid frequency unit is provided.
+        """
         if self.source_execution_date is None:
             today = date.today()
             if self.source_frequency_value is None:
@@ -83,7 +106,7 @@ class DataFlow:
                 if self.source_data_format:
                     # Safe(r) eval
                     try:
-                        formatted = eval(self.source_data_format, {"dt": dt, "date": date, "timedelta": timedelta})
+                        formatted = eval(self.source_data_format, {}, {"dt": dt, "date": date, "timedelta": timedelta})
                     except Exception as e:
                         logger.warning("Failed to eval source_data_format: {}. Error: {}".format(self.source_data_format, e))
                         formatted = str(dt)

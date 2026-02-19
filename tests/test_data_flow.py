@@ -33,3 +33,22 @@ def test_data_flow(data_flow_config):
    # Check if all attributes were correctly set
    for key, value in data_flow_config.items():
        assert getattr(df, key) == value
+
+from datetime import date, timedelta
+
+def test_generate_paths_with_dates():
+    df = DataFlow(
+        source_execution_date=None,
+        source_frequency_value=3,
+        source_frequency_unit='days',
+        source_fs_path='/tmp/data/{data_format}/file.csv',
+        source_data_format='dt.strftime("%Y-%m-%d")'
+    )
+
+    paths = df.generate_paths
+
+    today = date.today()
+    expected_dates = [today - timedelta(days=x + 1) for x in range(3)]
+    expected_paths = ['/tmp/data/{}/file.csv'.format(dt.strftime("%Y-%m-%d")) for dt in expected_dates]
+
+    assert paths == expected_paths
