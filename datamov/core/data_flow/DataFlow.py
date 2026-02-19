@@ -83,40 +83,15 @@ class DataFlow:
             dates = self._generate_dates()
 
             paths = []
-            optimized_format = None
-
-            if self.source_data_format:
-                try:
-                    tree = ast.parse(self.source_data_format, mode='eval')
-                    if isinstance(tree.body, ast.Call) and \
-                       isinstance(tree.body.func, ast.Attribute) and \
-                       tree.body.func.attr == 'strftime' and \
-                       isinstance(tree.body.func.value, ast.Name) and \
-                       tree.body.func.value.id == 'dt':
-                        args = tree.body.args
-                        if len(args) == 1:
-                            if hasattr(ast, 'Constant') and isinstance(args[0], ast.Constant):
-                                optimized_format = args[0].value
-                            elif hasattr(ast, 'Str') and isinstance(args[0], ast.Str):
-                                optimized_format = args[0].s
-                except Exception:
-                    pass
 
             for dt in dates:
                 if self.source_data_format:
-                    if optimized_format:
-                        try:
-                            formatted = dt.strftime(optimized_format)
-                        except Exception as e:
-                            logger.warning("Failed to strftime source_data_format: {}. Error: {}".format(self.source_data_format, e))
-                            formatted = str(dt)
-                    else:
-                        # Safe(r) eval
-                        try:
-                            formatted = eval(self.source_data_format, {"dt": dt, "date": date, "timedelta": timedelta})
-                        except Exception as e:
-                            logger.warning("Failed to eval source_data_format: {}. Error: {}".format(self.source_data_format, e))
-                            formatted = str(dt)
+                    try:
+                        # Treat source_data_format as a strftime format string
+                        formatted = dt.strftime(self.source_data_format)
+                    except Exception as e:
+                        logger.warning("Failed to format date with source_data_format: {}. Error: {}".format(self.source_data_format, e))
+                        formatted = str(dt)
                 else:
                     formatted = str(dt)
 

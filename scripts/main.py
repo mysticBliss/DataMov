@@ -16,9 +16,9 @@ def parse_arguments():
 
 def load_data_and_execute_flow(flow_name, spark_config):
     dm = DataMovements()
-    cfg = dm.environment_configs
-    logger.info("{}".format(dm.data_movements))
-    flow = dm.data_movements[flow_name]
+    cfg = dm.get_environment_configs
+    logger.info("{}".format(dm.get_data_movements))
+    flow = dm.get_data_movements[flow_name]
 
     executor = Engine(spark_config)
     executor.load_data_flow(flow, cfg)
