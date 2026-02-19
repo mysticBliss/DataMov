@@ -3,7 +3,6 @@ Author: Saqib Mujtaba
 License: MIT
 """
 from ..logger import Logger
-import traceback
 from pyspark.sql.utils import AnalysisException
 from ...utils.exceptions import PathNotFoundException
 from typing import Any, Optional, List, Dict, Union
@@ -31,8 +30,7 @@ class DataProcessor:
                 raise ae
 
         except Exception as e:
-            logger.error("Error occurred while fetching data: {}".format(e))
-            traceback.print_exc()
+            logger.error("Error occurred while fetching data: {}".format(e), exc_info=True)
             return None
 
     def create_temp_table_and_resultant_df(self, df: DataFrame, destination_sql: str) -> DataFrame:
@@ -119,8 +117,7 @@ class DataProcessor:
                 "output": df
                 }
         except Exception as e:
-            logger.error("Error occurred while saving data: {}".format(e))
-            traceback.print_exc()
+            logger.error("Error occurred while saving data: {}".format(e), exc_info=True)
             return {
                 "status": False,
                 "output": df
