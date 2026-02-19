@@ -47,8 +47,8 @@ class EnvironmentConfig:
 class DataMovements:
     def __init__(self, active_only: bool = False):
         self.configs = ConfigReader()
-        self.data_movements: Dict[str, DataFlow] = {}
-        self.environments: Dict[str, EnvironmentConfig] = {}
+        self._data_movements: Dict[str, DataFlow] = {}
+        self._environments: Dict[str, EnvironmentConfig] = {}
         self.active_only = active_only
         self.load_data_movements()
         self.load_environment_config()
@@ -70,7 +70,7 @@ class DataMovements:
                             continue
                         movement = DataFlow(**movement_data)
                         if movement.name:
-                            self.data_movements[movement.name] = movement
+                            self._data_movements[movement.name] = movement
 
     def load_environment_config(self) -> None:
         json_data = self.configs.get_json_data()
@@ -84,12 +84,12 @@ class DataMovements:
                 if isinstance(environment_configs, list):
                     for environment_data in environment_configs:
                         environment = EnvironmentConfig(**environment_data)
-                        self.environments[environment.environment] = environment
+                        self._environments[environment.environment] = environment
 
     @property
-    def get_data_movements(self) -> Dict[str, DataFlow]:
-        return self.data_movements
+    def data_movements(self) -> Dict[str, DataFlow]:
+        return self._data_movements
 
     @property
-    def get_environment_configs(self) -> Dict[str, EnvironmentConfig]:
-        return self.environments
+    def environment_configs(self) -> Dict[str, EnvironmentConfig]:
+        return self._environments
