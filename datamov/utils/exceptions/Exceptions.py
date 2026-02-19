@@ -2,6 +2,7 @@ class CreateTrackingDB(Exception):
     """Exception to create DB datamov_monitoring_db"""
 
     def __init__(self, message="Create DB datamov_monitoring_db before proceeding..."):
+        self.message = message
         super().__init__(message)
 
 
@@ -14,7 +15,7 @@ class FlowTypeException(Exception):
 
 
 class EnvTypeException(Exception):
-    """exception for invalid flow type"""
+    """exception for invalid environment type"""
 
     def __init__(self, message="env should be an instance of EnvironmentConfig"):
         self.message = message
@@ -33,5 +34,13 @@ class SqlNotFound(Exception):
     """exception for no value for source sql"""
 
     def __init__(self, message="Field source_sql needs to be defined in DataFlow Configuration"):
+        self.message = message
+        super().__init__(message)
+
+
+class SqlInjectionException(Exception):
+    """Exception for SQL Injection detected"""
+
+    def __init__(self, message="SQL Injection detected"):
         self.message = message
         super().__init__(message)
