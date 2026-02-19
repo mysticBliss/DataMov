@@ -81,11 +81,10 @@ class DataFlow:
             paths = []
             for dt in dates:
                 if self.source_data_format:
-                    # Safe(r) eval
                     try:
-                        formatted = eval(self.source_data_format, {"dt": dt, "date": date, "timedelta": timedelta})
-                    except Exception as e:
-                        logger.warning("Failed to eval source_data_format: {}. Error: {}".format(self.source_data_format, e))
+                        formatted = dt.strftime(self.source_data_format)
+                    except ValueError as e:
+                        logger.warning("Failed to format source_data_format: {}. Error: {}".format(self.source_data_format, e))
                         formatted = str(dt)
                 else:
                     formatted = str(dt)
