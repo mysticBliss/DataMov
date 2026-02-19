@@ -46,7 +46,14 @@ def test_engine_run(spark, tmp_path):
     engine.load_data_flow(flow, None)
 
     # Patch SparkManager to use our spark session and NOT close it
-    with patch("datamov.core.engine.Engine.SparkManager") as MockSparkManager:
+    with patch("datamov.core.engine.Engine.SparkManager") as MockSparkManager, \
+         patch("datamov.core.engine.Engine.Validator") as MockValidator:
+
+        # Setup Validator mock to always pass
+        # This is crucial when running with mocked Spark, as Great Expectations checks for real DataFrames
+        mock_validator_instance = MockValidator.return_value
+        mock_validator_instance.validate.return_value = True
+
         mock_instance = MockSparkManager.return_value
         mock_instance.__enter__.return_value = spark
         mock_instance.__exit__.return_value = None # Do nothing on exit
