@@ -44,9 +44,11 @@ def test_engine_run(spark, tmp_path):
 
     # Patch SparkManager to use our spark session and NOT close it
     # Also patch Validator to avoid running real GE validation on mocks or requiring complex setup
+    # NOTE: We do NOT patch 'lit' here because we are using a real SparkSession.
+    # Real DataFrames require real Column objects from real lit().
+    # The safe_lit_patch in conftest.py will handle returning the real lit() since SparkContext is active.
     with patch("datamov.core.engine.Engine.SparkManager") as MockSparkManager, \
-         patch("datamov.core.engine.Engine.Validator") as MockValidator, \
-         patch("datamov.core.engine.Engine.lit") as MockLit:
+         patch("datamov.core.engine.Engine.Validator") as MockValidator:
 
         mock_instance = MockSparkManager.return_value
         mock_instance.__enter__.return_value = spark
@@ -55,9 +57,6 @@ def test_engine_run(spark, tmp_path):
         # Configure Validator mock
         mock_validator_instance = MockValidator.return_value
         mock_validator_instance.validate.return_value = True
-
-        # Configure lit mock
-        MockLit.return_value = MagicMock()
 
         engine.run_flow()
 
