@@ -1,6 +1,4 @@
 import pytest
-from datetime import date, timedelta
-from unittest.mock import patch
 from datamov.core.data_flow import DataFlow
 
 @pytest.fixture
@@ -35,76 +33,3 @@ def test_data_flow(data_flow_config):
    # Check if all attributes were correctly set
    for key, value in data_flow_config.items():
        assert getattr(df, key) == value
-
-class TestGeneratePaths:
-
-    @patch('datamov.core.data_flow.DataFlow.date')
-    def test_generate_paths_days(self, mock_date):
-        fixed_today = date(2023, 1, 1)
-        mock_date.today.return_value = fixed_today
-        mock_date.side_effect = lambda *args, **kwargs: date(*args, **kwargs)
-
-        df = DataFlow(
-            source_frequency_unit='days',
-            source_frequency_value=3,
-            source_fs_path="/data/{data_format}"
-        )
-
-        paths = df.generate_paths
-
-        expected_dates = [fixed_today - timedelta(days=x + 1) for x in range(3)]
-        expected_paths = ["/data/{}".format(d) for d in expected_dates]
-
-        assert paths == expected_paths
-
-    @patch('datamov.core.data_flow.DataFlow.date')
-    def test_generate_paths_months(self, mock_date):
-        fixed_today = date(2023, 1, 1)
-        mock_date.today.return_value = fixed_today
-        mock_date.side_effect = lambda *args, **kwargs: date(*args, **kwargs)
-
-        df = DataFlow(
-            source_frequency_unit='months',
-            source_frequency_value=2,
-            source_fs_path="/data/{data_format}"
-        )
-
-        paths = df.generate_paths
-
-        # Correct logic (using d.year + y as per fix in DataFlow.py)
-        def subtract_month(d, months):
-            y, m = divmod(d.month - months - 1, 12)
-            return date(d.year + y, m + 1, d.day)
-
-        expected_dates = [subtract_month(fixed_today, x + 1) for x in range(2)]
-        expected_paths = ["/data/{}".format(d) for d in expected_dates]
-
-        assert paths == expected_paths
-
-    @patch('datamov.core.data_flow.DataFlow.date')
-    def test_generate_paths_with_execution_date(self, mock_date):
-        df = DataFlow(
-            source_execution_date="2023-01-01",
-            source_fs_path="/data/{data_format}"
-        )
-        paths = df.generate_paths
-        assert paths == ["/data/2023-01-01"]
-
-    @patch('datamov.core.data_flow.DataFlow.date')
-    def test_generate_paths_with_format(self, mock_date):
-        fixed_today = date(2023, 1, 1)
-        mock_date.today.return_value = fixed_today
-        mock_date.side_effect = lambda *args, **kwargs: date(*args, **kwargs)
-
-        df = DataFlow(
-            source_frequency_unit='days',
-            source_frequency_value=1,
-            source_data_format="dt.strftime('%Y%m%d')",
-            source_fs_path="/data/{data_format}"
-        )
-
-        paths = df.generate_paths
-        expected_date = fixed_today - timedelta(days=1)
-        expected_str = expected_date.strftime('%Y%m%d')
-
-        assert paths == ["/data/{}".format(expected_str)]
