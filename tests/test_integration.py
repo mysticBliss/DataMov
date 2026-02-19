@@ -16,6 +16,9 @@ def spark():
         .getOrCreate()
 
 def test_engine_run(spark, tmp_path):
+    if isinstance(spark, MagicMock):
+        pytest.skip("Skipping integration test because pyspark is mocked")
+
     # Setup source data
     source_df = spark.createDataFrame([(1, "a"), (2, "b")], ["id", "val"])
     source_df.createOrReplaceTempView("source_table")
