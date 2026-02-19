@@ -1,4 +1,5 @@
 import json
+import ast
 from datetime import date, timedelta
 import time
 import uuid
@@ -40,7 +41,7 @@ class DataFlow:
     @staticmethod
     def _subtract_month(d: date, months: int) -> date:
         y, m = divmod(d.month - months - 1, 12)
-        return date(d.year - y, m + 1, d.day)
+        return date(d.year + y, m + 1, d.day)
 
     @classmethod
     def generate_tracking_id(cls) -> str:
@@ -53,40 +54,69 @@ class DataFlow:
         return _dict
 
 
+    def _generate_dates(self) -> List[date]:
+        today = date.today()
+        dates: List[date] = []
+
+        if self.source_frequency_unit == 'days':
+            dates = [today - timedelta(days=x + 1)
+                    for x in range(self.source_frequency_value)]
+
+        elif self.source_frequency_unit == 'months':
+            dates = [self._subtract_month(today, x + 1)
+                    for x in range(self.source_frequency_value)]
+        else:
+            raise ValueError("Invalid frequency unit provided")
+
+        logger.debug("Generated Dates: {}".format(dates))
+        return dates
+
     @property
     def generate_paths(self) -> List[str]:
         if self.source_execution_date is None:
-            today = date.today()
             if self.source_frequency_value is None:
                 # If no frequency is provided, we can't generate date-based paths unless default behavior is needed.
                 # Returning empty list or maybe raising error?
                 # Original code would crash or behave weirdly.
                 return []
 
-            dates: List[date] = []
-            if self.source_frequency_unit == 'days':
-                dates = [today - timedelta(days=x + 1)
-                        for x in range(self.source_frequency_value)]
-
-                logger.debug("Generated Dates: {}".format(dates))
-
-            elif self.source_frequency_unit == 'months':
-                dates = [self._subtract_month(today, x + 1)
-                        for x in range(self.source_frequency_value)]
-
-                logger.debug("Generated Dates: {}".format(dates))
-            else:
-                raise ValueError("Invalid frequency unit provided")
+            dates = self._generate_dates()
 
             paths = []
+            optimized_format = None
+
+            if self.source_data_format:
+                try:
+                    tree = ast.parse(self.source_data_format, mode='eval')
+                    if isinstance(tree.body, ast.Call) and \
+                       isinstance(tree.body.func, ast.Attribute) and \
+                       tree.body.func.attr == 'strftime' and \
+                       isinstance(tree.body.func.value, ast.Name) and \
+                       tree.body.func.value.id == 'dt':
+                        args = tree.body.args
+                        if len(args) == 1:
+                            if hasattr(ast, 'Constant') and isinstance(args[0], ast.Constant):
+                                optimized_format = args[0].value
+                            elif hasattr(ast, 'Str') and isinstance(args[0], ast.Str):
+                                optimized_format = args[0].s
+                except Exception:
+                    pass
+
             for dt in dates:
                 if self.source_data_format:
-                    # Safe(r) eval
-                    try:
-                        formatted = eval(self.source_data_format, {"dt": dt, "date": date, "timedelta": timedelta})
-                    except Exception as e:
-                        logger.warning("Failed to eval source_data_format: {}. Error: {}".format(self.source_data_format, e))
-                        formatted = str(dt)
+                    if optimized_format:
+                        try:
+                            formatted = dt.strftime(optimized_format)
+                        except Exception as e:
+                            logger.warning("Failed to strftime source_data_format: {}. Error: {}".format(self.source_data_format, e))
+                            formatted = str(dt)
+                    else:
+                        # Safe(r) eval
+                        try:
+                            formatted = eval(self.source_data_format, {"dt": dt, "date": date, "timedelta": timedelta})
+                        except Exception as e:
+                            logger.warning("Failed to eval source_data_format: {}. Error: {}".format(self.source_data_format, e))
+                            formatted = str(dt)
                 else:
                     formatted = str(dt)
 

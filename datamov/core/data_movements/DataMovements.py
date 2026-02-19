@@ -47,8 +47,8 @@ class EnvironmentConfig:
 class DataMovements:
     def __init__(self, active_only: bool = False):
         self.configs = ConfigReader()
-        self.data_movements: Dict[str, DataFlow] = {}
-        self.environments: Dict[str, EnvironmentConfig] = {}
+        self._data_movements: Dict[str, DataFlow] = {}
+        self._environments: Dict[str, EnvironmentConfig] = {}
         self.active_only = active_only
         self.load_configs()
 
@@ -57,30 +57,36 @@ class DataMovements:
         for filename, data in json_data.items():
             logger.info("Found file: {}".format(filename))
             logger.info("Data movement Files should start as : data_movements_*.json \n Envrironment as evironment_*.json")
+
             if filename.startswith('data_movements_'):
-                if 'data_movements' not in data:
-                    logger.info("Error: 'data_movements' not found in {}.".format(filename))
-                    continue
-
-                movements_config = data['data_movements']
-                if isinstance(movements_config, list):
-                    for movement_data in movements_config:
-                        if self.active_only and movement_data.get('active', False) != True:
-                            continue
-                        movement = DataFlow(**movement_data)
-                        if movement.name:
-                            self.data_movements[movement.name] = movement
-
+                self._process_data_movements(filename, data)
             elif filename.startswith('environment_'):
-                if 'environment_configs' not in data:
-                    logger.error("Error: 'environment_configs' not found in {}.".format(filename))
-                    continue
+                self._process_environment_config(filename, data)
 
-                environment_configs = data['environment_configs']
-                if isinstance(environment_configs, list):
-                    for environment_data in environment_configs:
-                        environment = EnvironmentConfig(**environment_data)
-                        self.environments[environment.environment] = environment
+    def _process_data_movements(self, filename: str, data: Dict[str, Any]) -> None:
+        if 'data_movements' not in data:
+            logger.info("Error: 'data_movements' not found in {}.".format(filename))
+            return
+
+        movements_config = data['data_movements']
+        if isinstance(movements_config, list):
+            for movement_data in movements_config:
+                if self.active_only and movement_data.get('active', False) != True:
+                    continue
+                movement = DataFlow(**movement_data)
+                if movement.name:
+                    self.data_movements[movement.name] = movement
+
+    def _process_environment_config(self, filename: str, data: Dict[str, Any]) -> None:
+        if 'environment_configs' not in data:
+            logger.error("Error: 'environment_configs' not found in {}.".format(filename))
+            return
+
+        environment_configs = data['environment_configs']
+        if isinstance(environment_configs, list):
+            for environment_data in environment_configs:
+                environment = EnvironmentConfig(**environment_data)
+                self.environments[environment.environment] = environment
 
     def load_data_movements(self) -> None:
         """Deprecated: use load_configs instead."""
@@ -91,9 +97,9 @@ class DataMovements:
         self.load_configs()
 
     @property
-    def get_data_movements(self) -> Dict[str, DataFlow]:
-        return self.data_movements
+    def data_movements(self) -> Dict[str, DataFlow]:
+        return self._data_movements
 
     @property
-    def get_environment_configs(self) -> Dict[str, EnvironmentConfig]:
-        return self.environments
+    def environment_configs(self) -> Dict[str, EnvironmentConfig]:
+        return self._environments

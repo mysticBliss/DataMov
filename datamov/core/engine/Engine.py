@@ -37,37 +37,33 @@ class Engine:
         logger.info("ENGINE: Data Movement Definition: %s", self.dataflow)
 
     def run_flow(self) -> None:
+        app_name = "DataMov Engine"
+        with SparkManager(app_name, config=self.config) as spark:
+            data_processor = DataProcessor(spark)
 
-        for flow, envs in self.dataflow.items():
-            logger.info(
-                "ENGINE: Starting Flow Execution: {}".format(flow.name))
-
-            # Fixing None Attributes
-            MODE = getattr(flow, 'destination_mode', None)
-            PATH = getattr(flow, 'destination_path', None)
-            PARTITIONS = getattr(flow, 'destination_partitions', None)
-
-            app_name = "DataFlow: {}".format(flow.name)
-
-
-            with SparkManager(app_name, config=self.config) as spark:
-                data_processor = DataProcessor(spark)
-
-                # Create Tracking DB exists [datamov_monitoring_db]
-                if not spark.catalog._jcatalog.databaseExists("datamov_monitoring_db"):
-                     try:
-                        if not [db for db in spark.catalog.listDatabases() if db.name == "datamov_monitoring_db"]:
+            # Create Tracking DB exists [datamov_monitoring_db]
+            if not spark.catalog._jcatalog.databaseExists("datamov_monitoring_db"):
+                try:
+                    if not [db for db in spark.catalog.listDatabases() if db.name == "datamov_monitoring_db"]:
+                        raise CreateTrackingDB
+                except Exception:
+                    try:
+                        if not spark.catalog._jcatalog.databaseExists("datamov_monitoring_db"):
                             raise CreateTrackingDB
-                     except Exception:
-                         try:
-                             if not spark.catalog._jcatalog.databaseExists("datamov_monitoring_db"):
-                                 raise CreateTrackingDB
-                         except Exception:
-                             pass
+                    except Exception:
+                        pass
 
-                # https://stackoverflow.com/questions/58633753/ignoring-non-spark-config-property-hive-exec-dynamic-partition-mode
-                spark.conf.set("hive.exec.dynamic.partition.mode", "nonstrict")
+            # https://stackoverflow.com/questions/58633753/ignoring-non-spark-config-property-hive-exec-dynamic-partition-mode
+            spark.conf.set("hive.exec.dynamic.partition.mode", "nonstrict")
 
+            for flow, envs in self.dataflow.items():
+                logger.info(
+                    "ENGINE: Starting Flow Execution: {}".format(flow.name))
+
+                # Fixing None Attributes
+                MODE = getattr(flow, 'destination_mode', None)
+                PATH = getattr(flow, 'destination_path', None)
+                PARTITIONS = getattr(flow, 'destination_partitions', None)
 
                 if flow.source_type and flow.source_type.lower() in {DataSystems.HIVE, DataSystems.IMPALA, DataSystems.KUDU}:
                     if flow.source_sql is None:
@@ -189,4 +185,4 @@ class Engine:
                 finally:
                     df_to_unpersist.unpersist()
 
-        logger.info("ENGINE: Exiting Flow Execution: {}".format(flow.name))
+            logger.info("ENGINE: Exiting Flow Execution: {}".format(flow.name))
