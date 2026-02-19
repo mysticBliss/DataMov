@@ -88,6 +88,14 @@ class DataMovements:
                 environment = EnvironmentConfig(**environment_data)
                 self.environments[environment.environment] = environment
 
+    def load_data_movements(self) -> None:
+        """Deprecated: use load_configs instead."""
+        self.load_configs()
+
+    def load_environment_config(self) -> None:
+        """Deprecated: use load_configs instead."""
+        self.load_configs()
+
     @property
     def data_movements(self) -> Dict[str, DataFlow]:
         return self._data_movements
