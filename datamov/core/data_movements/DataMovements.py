@@ -50,10 +50,9 @@ class DataMovements:
         self.data_movements: Dict[str, DataFlow] = {}
         self.environments: Dict[str, EnvironmentConfig] = {}
         self.active_only = active_only
-        self.load_data_movements()
-        self.load_environment_config()
+        self.load_configs()
 
-    def load_data_movements(self) -> None:
+    def load_configs(self) -> None:
         json_data = self.configs.get_json_data()
         for filename, data in json_data.items():
             logger.info("Found file: {}".format(filename))
@@ -72,10 +71,7 @@ class DataMovements:
                         if movement.name:
                             self.data_movements[movement.name] = movement
 
-    def load_environment_config(self) -> None:
-        json_data = self.configs.get_json_data()
-        for filename, data in json_data.items():
-            if filename.startswith('environment_'):
+            elif filename.startswith('environment_'):
                 if 'environment_configs' not in data:
                     logger.error("Error: 'environment_configs' not found in {}.".format(filename))
                     continue
@@ -85,6 +81,14 @@ class DataMovements:
                     for environment_data in environment_configs:
                         environment = EnvironmentConfig(**environment_data)
                         self.environments[environment.environment] = environment
+
+    def load_data_movements(self) -> None:
+        """Deprecated: use load_configs instead."""
+        self.load_configs()
+
+    def load_environment_config(self) -> None:
+        """Deprecated: use load_configs instead."""
+        self.load_configs()
 
     @property
     def get_data_movements(self) -> Dict[str, DataFlow]:
