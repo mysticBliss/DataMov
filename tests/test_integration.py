@@ -43,10 +43,8 @@ def test_engine_run(spark, tmp_path):
     engine.load_data_flow(flow, None)
 
     # Patch SparkManager to use our spark session and NOT close it
-    with patch("datamov.core.engine.Engine.SparkManager") as MockSparkManager:
-        mock_instance = MockSparkManager.return_value
-        mock_instance.__enter__.return_value = spark
-        mock_instance.__exit__.return_value = None # Do nothing on exit
+    with patch("datamov.core.engine.Engine.SparkManager") as MockSparkManager, \
+         patch("datamov.core.engine.Engine.DataProcessor") as MockDataProcessor:
 
         # Ensure mocked spark.sql returns a DataFrame with a count() method that returns an int
         # This is necessary when running in an environment where pyspark is mocked
