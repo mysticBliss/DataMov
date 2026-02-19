@@ -1,4 +1,5 @@
 import json
+import calendar
 from datetime import date, timedelta
 import time
 import uuid
@@ -40,7 +41,11 @@ class DataFlow:
     @staticmethod
     def _subtract_month(d: date, months: int) -> date:
         y, m = divmod(d.month - months - 1, 12)
-        return date(d.year - y, m + 1, d.day)
+        year = d.year + y
+        month = m + 1
+        _, days_in_month = calendar.monthrange(year, month)
+        day = min(d.day, days_in_month)
+        return date(year, month, day)
 
     @classmethod
     def generate_tracking_id(cls) -> str:
