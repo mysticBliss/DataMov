@@ -36,3 +36,11 @@ class SqlNotFound(Exception):
     def __init__(self, message="Field source_sql needs to be defined in DataFlow Configuration"):
         self.message = message
         super().__init__(message)
+
+
+class SqlInjectionException(Exception):
+    """Exception for SQL Injection detected"""
+
+    def __init__(self, message="SQL Injection detected"):
+        self.message = message
+        super().__init__(message)
