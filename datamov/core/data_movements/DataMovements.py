@@ -46,7 +46,7 @@ class EnvironmentConfig:
 
 class DataMovements:
     def __init__(self, active_only: bool = False):
-        self.configs = ConfigReader()
+        self.configs = ConfigReader(file_pattern=r'^(data_movements_|environment_).*\.json$')
         self.data_movements: Dict[str, DataFlow] = {}
         self.environments: Dict[str, EnvironmentConfig] = {}
         self.active_only = active_only
