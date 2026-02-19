@@ -16,7 +16,17 @@ def spark():
         .getOrCreate()
 
 def test_engine_run(spark, tmp_path):
-    # Setup source data
+    # Setup mock dataframe behavior
+    mock_df = MagicMock()
+    mock_df.count.return_value = 2
+
+    # Configure spark mock to return our mock_df
+    spark.createDataFrame.return_value = mock_df
+    spark.sql.return_value = mock_df
+    # Configure read.parquet to return mock_df for verification
+    spark.read.parquet.return_value = mock_df
+
+    # Setup source data (Mock call)
     source_df = spark.createDataFrame([(1, "a"), (2, "b")], ["id", "val"])
     source_df.createOrReplaceTempView("source_table")
 

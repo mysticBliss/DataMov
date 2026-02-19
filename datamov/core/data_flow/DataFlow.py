@@ -40,7 +40,7 @@ class DataFlow:
     @staticmethod
     def _subtract_month(d: date, months: int) -> date:
         y, m = divmod(d.month - months - 1, 12)
-        return date(d.year - y, m + 1, d.day)
+        return date(d.year + y, m + 1, d.day)
 
     @classmethod
     def generate_tracking_id(cls) -> str:
@@ -53,30 +53,33 @@ class DataFlow:
         return _dict
 
 
+    def _generate_dates(self) -> List[date]:
+        today = date.today()
+        dates: List[date] = []
+
+        if self.source_frequency_unit == 'days':
+            dates = [today - timedelta(days=x + 1)
+                    for x in range(self.source_frequency_value)]
+
+        elif self.source_frequency_unit == 'months':
+            dates = [self._subtract_month(today, x + 1)
+                    for x in range(self.source_frequency_value)]
+        else:
+            raise ValueError("Invalid frequency unit provided")
+
+        logger.debug("Generated Dates: {}".format(dates))
+        return dates
+
     @property
     def generate_paths(self) -> List[str]:
         if self.source_execution_date is None:
-            today = date.today()
             if self.source_frequency_value is None:
                 # If no frequency is provided, we can't generate date-based paths unless default behavior is needed.
                 # Returning empty list or maybe raising error?
                 # Original code would crash or behave weirdly.
                 return []
 
-            dates: List[date] = []
-            if self.source_frequency_unit == 'days':
-                dates = [today - timedelta(days=x + 1)
-                        for x in range(self.source_frequency_value)]
-
-                logger.debug("Generated Dates: {}".format(dates))
-
-            elif self.source_frequency_unit == 'months':
-                dates = [self._subtract_month(today, x + 1)
-                        for x in range(self.source_frequency_value)]
-
-                logger.debug("Generated Dates: {}".format(dates))
-            else:
-                raise ValueError("Invalid frequency unit provided")
+            dates = self._generate_dates()
 
             paths = []
             for dt in dates:
