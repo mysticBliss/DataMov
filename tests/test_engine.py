@@ -47,7 +47,8 @@ def test_run_flow_tracking_no_debug_print(data_flow_config):
 
         # Mock DataProcessor
         with patch('datamov.core.engine.Engine.DataProcessor') as MockDataProcessor, \
-             patch('datamov.core.engine.Engine.Validator') as MockValidator:
+             patch('datamov.core.engine.Engine.Validator') as MockValidator, \
+             patch('datamov.core.engine.Engine.lit') as MockLit:
 
             # Setup Validator mock to pass
             mock_validator_instance = MockValidator.return_value
