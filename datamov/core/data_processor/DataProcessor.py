@@ -45,7 +45,7 @@ class DataProcessor:
         df.createOrReplaceTempView(temp_table_name)
         generated_sql = "{}  {}".format(destination_sql, temp_table_name)
 
-        logger.info(generated_sql)
+        logger.debug(generated_sql)
 
         df_transformed = self.spark.sql(generated_sql)
 
