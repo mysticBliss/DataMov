@@ -97,90 +97,96 @@ class Engine:
                     df, flow.destination_sql
                     )
 
-                logger.info("ENGINE: Fetched {} records from {}"
-                            .format(
-                                df_transformed.count(),
-                                flow.source_type
-                                )
-                )
+                df_transformed.cache()
+                df_to_unpersist = df_transformed
+                try:
+                    count_transformed = df_transformed.count()
 
-                # Validation Step
-                if flow.expectations:
-                    logger.info("ENGINE: Running Great Expectations validation...")
-                    validator = Validator(df_transformed)
-                    validation_success = validator.validate(flow.expectations)
-
-                    if not validation_success:
-                        logger.error("ENGINE: Validation failed for flow {}. Skipping save operation.".format(flow.name))
-                        # Optionally record failure in tracking DB here?
-                        # For now, just skip.
-                        continue
-
-                logger.info(
-                    "Loading {} from TEMP_TABLE in {} mode at location {} with partitions -> {}".format(
-                        flow.destination_type,
-                        MODE,
-                        PATH,
-                        PARTITIONS
-                    )
-                )
-
-                count_transformed = df_transformed.count()
-
-                if count_transformed > 0:
-
-                    # generate uuid for this tracking process
-                    GENERATED_UUID = DataFlow.generate_tracking_id()
-
-                    df_transformed = df_transformed.withColumn('uuid', lit(GENERATED_UUID))
-
-
-                    STATUS_DICT = data_processor.save_data(
-                        df=df_transformed,
-                        destination_path=PATH,
-                        format_type=flow.destination_type, # type: ignore
-                        mode=MODE, # type: ignore
-                        kudu_masters=None,
-                        table_name=flow.destination_table,
-                        partition_cols=PARTITIONS
+                    logger.info("ENGINE: Fetched {} records from {}"
+                                .format(
+                                    count_transformed,
+                                    flow.source_type
+                                    )
                     )
 
-                    # Final Loaded DataFrame
-                    df_final_load = STATUS_DICT.get("output")
+                    # Validation Step
+                    if flow.expectations:
+                        logger.info("ENGINE: Running Great Expectations validation...")
+                        validator = Validator(df_transformed)
+                        validation_success = validator.validate(flow.expectations)
 
-                    # Populate ETLTracking table
-                    TRACKING_DICT = flow.to_dict() # dictionary object for the class
+                        if not validation_success:
+                            logger.error("ENGINE: Validation failed for flow {}. Skipping save operation.".format(flow.name))
+                            # Optionally record failure in tracking DB here?
+                            # For now, just skip.
+                            continue
 
-
-                    TRACKING_DICT['dm_etl_uuid'] = GENERATED_UUID
-                    TRACKING_DICT['source_count'] = count_transformed
-                    TRACKING_DICT['destination_count'] = df_final_load.count() if df_final_load else 0
-                    TRACKING_DICT['load_status'] = 'SUCCESS' if STATUS_DICT.get("status") else "FAILED"
-                    logger.info("TRACKING_DICT: {}".format(TRACKING_DICT))
-
-
-                    try:
-                        keys = list(TRACKING_DICT.keys())
-                        values = [TRACKING_DICT[k] for k in keys]
-
-                        df_tracking = spark.createDataFrame([tuple(values)], schema=keys)
-
-                        df_tracking.select('dm_etl_uuid', 'load_status').show()
-
-                        data_processor.save_data(
-                            df=df_tracking,
-                            destination_path=None,
-                            format_type="hive",
-                            mode="append",
-                            kudu_masters=None,
-                            table_name="datamov_monitoring_db.t_etl_flow_tracker",
-                            partition_cols=[]
+                    logger.info(
+                        "Loading {} from TEMP_TABLE in {} mode at location {} with partitions -> {}".format(
+                            flow.destination_type,
+                            MODE,
+                            PATH,
+                            PARTITIONS
                         )
-                    except Exception as e:
-                        logger.error("Failed to save tracking info: {}".format(e))
+                    )
 
-                else:
-                    logger.warning(
-                        "ENGINE: No Data to Load: {}".format(flow.name))
+
+                    if count_transformed > 0:
+
+                        # generate uuid for this tracking process
+                        GENERATED_UUID = DataFlow.generate_tracking_id()
+
+                        df_transformed = df_transformed.withColumn('uuid', lit(GENERATED_UUID))
+
+
+                        STATUS_DICT = data_processor.save_data(
+                            df=df_transformed,
+                            destination_path=PATH,
+                            format_type=flow.destination_type, # type: ignore
+                            mode=MODE, # type: ignore
+                            kudu_masters=None,
+                            table_name=flow.destination_table,
+                            partition_cols=PARTITIONS
+                        )
+
+                        # Final Loaded DataFrame
+                        df_final_load = STATUS_DICT.get("output")
+
+                        # Populate ETLTracking table
+                        TRACKING_DICT = flow.to_dict() # dictionary object for the class
+
+
+                        TRACKING_DICT['dm_etl_uuid'] = GENERATED_UUID
+                        TRACKING_DICT['source_count'] = count_transformed
+                        TRACKING_DICT['destination_count'] = count_transformed if df_final_load else 0
+                        TRACKING_DICT['load_status'] = 'SUCCESS' if STATUS_DICT.get("status") else "FAILED"
+                        logger.info("TRACKING_DICT: {}".format(TRACKING_DICT))
+
+
+                        try:
+                            keys = list(TRACKING_DICT.keys())
+                            values = [TRACKING_DICT[k] for k in keys]
+
+                            df_tracking = spark.createDataFrame([tuple(values)], schema=keys)
+
+                            df_tracking.select('dm_etl_uuid', 'load_status').show()
+
+                            data_processor.save_data(
+                                df=df_tracking,
+                                destination_path=None,
+                                format_type="hive",
+                                mode="append",
+                                kudu_masters=None,
+                                table_name="datamov_monitoring_db.t_etl_flow_tracker",
+                                partition_cols=[]
+                            )
+                        except Exception as e:
+                            logger.error("Failed to save tracking info: {}".format(e))
+
+                    else:
+                        logger.warning(
+                            "ENGINE: No Data to Load: {}".format(flow.name))
+                finally:
+                    df_to_unpersist.unpersist()
 
         logger.info("ENGINE: Exiting Flow Execution: {}".format(flow.name))
