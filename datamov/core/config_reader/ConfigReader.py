@@ -1,5 +1,8 @@
 import os
 import json
+from ..logger import Logger
+
+logger = Logger().get_logger()
 
 class ConfigReader:
     def __init__(self, directory=None):
@@ -11,6 +14,14 @@ class ConfigReader:
         self.read_json_files()
 
     def read_json_files(self):
+        if not os.path.exists(self.directory):
+            logger.warning("Directory {} does not exist. Skipping.".format(self.directory))
+            return
+
+        if not os.path.isdir(self.directory):
+            logger.warning("Path {} is not a directory. Skipping.".format(self.directory))
+            return
+
         for filename in os.listdir(self.directory):
             if filename.endswith('.json'):
                 file_path = os.path.join(self.directory, filename)
