@@ -169,6 +169,8 @@ class Engine:
 
                             df_tracking = spark.createDataFrame([tuple(values)], schema=keys)
 
+                            df_tracking.select('dm_etl_uuid', 'load_status').show()
+
                             data_processor.save_data(
                                 df=df_tracking,
                                 destination_path=None,

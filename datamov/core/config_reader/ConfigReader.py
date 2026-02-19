@@ -5,6 +5,9 @@ class ConfigReader:
     def __init__(self, directory=None):
         self.directory = directory if directory else "."
         self.json_data = {}
+        self.post_init()
+
+    def post_init(self):
         self.read_json_files()
 
     def read_json_files(self):

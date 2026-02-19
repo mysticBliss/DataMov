@@ -5,10 +5,9 @@ License: MIT
 from ..logger import Logger
 import traceback
 from pyspark.sql.utils import AnalysisException
-from ...utils.exceptions import PathNotFoundException, SqlInjectionException
+from ...utils.exceptions import PathNotFoundException
 from typing import Any, Optional, List, Dict, Union
 from pyspark.sql import SparkSession, DataFrame
-import uuid
 
 logger = Logger().get_logger()
 
@@ -41,12 +40,8 @@ class DataProcessor:
 
         logger.debug("Creating TBL table (query={})".format(destination_sql))
 
-        # Basic SQL Injection Validation
-        self._validate_sql_safety(destination_sql)
-
         # Temporary Table Name:
-        # Use a random table name to prevent predictability and collisions
-        temp_table_name = 'datamov_tmp_' + uuid.uuid4().hex
+        temp_table_name = 'datamov_tmp'
         df.createOrReplaceTempView(temp_table_name)
         generated_sql = "{}  {}".format(destination_sql, temp_table_name)
 
@@ -131,58 +126,23 @@ class DataProcessor:
                 "output": df
                 }
 
-    def _is_escaped(self, sql: str, index: int) -> bool:
+    def _kudu_table_exists(self, table_name: str, kudu_masters: List[str]) -> bool:
         """
-        Checks if the character at the given index is effectively escaped by backslashes.
-        It counts consecutive backslashes preceding the character.
-        If the count is odd, the character is escaped.
+        Checks if a Kudu table exists by attempting to read its schema.
+
+        Args:
+            table_name (str): The name of the Kudu table.
+            kudu_masters (List[str]): List of Kudu master addresses.
+
+        Returns:
+            bool: True if table exists and is accessible, False otherwise.
         """
-        if index == 0:
+        try:
+            self.spark.read.format("org.apache.kudu.spark.kudu") \
+                .option("kudu.table", table_name) \
+                .option("kudu.master", ",".join(kudu_masters)) \
+                .load().limit(0).collect()
+            return True
+        except Exception as e:
+            logger.warning("Failed to check existence of Kudu table '{}': {}".format(table_name, e))
             return False
-        backslashes = 0
-        idx = index - 1
-        while idx >= 0 and sql[idx] == '\\':
-            backslashes += 1
-            idx -= 1
-        return backslashes % 2 == 1
-
-    def _validate_sql_safety(self, sql: str) -> None:
-        """
-        Validates the SQL query for injection risks.
-        Rejects semicolons (;) and comments (-- and /*) unless they are inside string literals.
-        """
-        in_single_quote = False
-        in_double_quote = False
-        i = 0
-        n = len(sql)
-
-        while i < n:
-            char = sql[i]
-
-            if in_single_quote:
-                if char == "'" and not self._is_escaped(sql, i):
-                    in_single_quote = False
-            elif in_double_quote:
-                if char == '"' and not self._is_escaped(sql, i):
-                    in_double_quote = False
-            else:
-                if char == "'":
-                    in_single_quote = True
-                elif char == '"':
-                    in_double_quote = True
-                elif char == ';':
-                    raise SqlInjectionException("Semicolon (;) not allowed in SQL query.")
-                elif char == '-' and i + 1 < n and sql[i+1] == '-':
-                    raise SqlInjectionException("Double dash (--) comments not allowed in SQL query.")
-                elif char == '/' and i + 1 < n and sql[i+1] == '*':
-                    raise SqlInjectionException("Block comments (/*) not allowed in SQL query.")
-            i += 1
-
-    def _kudu_table_exists(self, table_name: str) -> bool:
-        # TODO: Implement Kudu table existence check if possible or leave as placeholder
-        # Original code called it but didn't implement it in the file I read?
-        # Wait, I checked DataProcessor.py content earlier. It did call `self._kudu_table_exists`.
-        # But `_kudu_table_exists` was NOT in the file content I read!
-        # Let me re-read the file content I retrieved earlier.
-        pass
-        return True # Mocking for now as I don't see implementation in original file

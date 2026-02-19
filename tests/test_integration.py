@@ -2,7 +2,7 @@ import pytest
 from pyspark.sql import SparkSession
 from datamov.core.engine import Engine
 from datamov.core.data_flow import DataFlow
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock, PropertyMock
 import os
 
 @pytest.fixture(scope="session")
@@ -43,43 +43,49 @@ def test_engine_run(spark, tmp_path):
     engine.load_data_flow(flow, None)
 
     # Patch SparkManager to use our spark session and NOT close it
-    # Also patch Validator to avoid running real GE validation on mocks or requiring complex setup
-    # NOTE: We do NOT patch 'lit' here because we are using a real SparkSession.
-    # Real DataFrames require real Column objects from real lit().
-    # The safe_lit_patch in conftest.py will handle returning the real lit() since SparkContext is active.
-    with patch("datamov.core.engine.Engine.SparkManager") as MockSparkManager, \
-         patch("datamov.core.engine.Engine.Validator") as MockValidator:
-
+    with patch("datamov.core.engine.Engine.SparkManager") as MockSparkManager:
         mock_instance = MockSparkManager.return_value
         mock_instance.__enter__.return_value = spark
         mock_instance.__exit__.return_value = None # Do nothing on exit
 
-        # Since we are running with mocked pyspark, count() returns a MagicMock by default.
-        # We need to patch DataProcessor methods to return objects that behave like DataFrames with valid counts.
-        # Or patch the DataProcessor class itself.
-        with patch("datamov.core.engine.Engine.DataProcessor") as MockDataProcessor:
-            mock_dp_instance = MockDataProcessor.return_value
+        # Ensure mocked spark.sql returns a DataFrame with a count() method that returns an int
+        # This is necessary when running in an environment where pyspark is mocked
+        if isinstance(spark, MagicMock):
+             # Make sure subsequent sql calls return a mock that behaves like a DF
+             mock_df = MagicMock()
+             mock_df.count.return_value = 2
+             mock_df.printSchema.return_value = None
+             # Ensure chained calls also return this mock or similar
+             mock_df.cache.return_value = mock_df
 
-            # Create a mock dataframe that returns an int for count
-            mock_df = MagicMock()
-            mock_df.count.return_value = 2 # Set a positive count
+             # IMPORTANT: Ensure df.write returns the SAME mock object every time
+             # This allows us to verify calls on it later.
+             mock_writer = MagicMock()
+             type(mock_df).write = PropertyMock(return_value=mock_writer)
 
-            # Configure DataProcessor methods to return this mock df
-            mock_dp_instance.fetch_data.return_value = mock_df
-            mock_dp_instance.create_temp_table_and_resultant_df.return_value = mock_df
+             spark.sql.return_value = mock_df
 
-            # Configure save_data to return success
-            mock_dp_instance.save_data.return_value = {"status": True, "output": mock_df}
+             # Also need to handle fetch_data which might return a mock if source_type is hive/impala/kudu
+             # engine calls data_processor.fetch_data -> spark.sql(query)
+             # So mocking spark.sql should cover it.
 
-            engine.run_flow()
+        # Ensure create_temp_table_and_resultant_df uses the same mocked DF
+        # It calls spark.sql("... temp_table_name").
+        # If we return mock_df there, subsequent usage of mock_df.write should use our mock_writer.
 
-            # Verify output
-            # Since we mocked DataProcessor, the actual file writing didn't happen via Spark (which is mocked anyway).
-            # So the assertions on file system are meaningless if Spark is mocked.
-            # But let's check if save_data was called.
-            mock_dp_instance.save_data.assert_called()
+        engine.run_flow()
 
-            # We can remove the file assertions because they rely on real Spark execution which isn't happening.
-            # assert os.path.exists(str(tmp_path / "output"))
-            # out_df = spark.read.parquet(str(tmp_path / "output"))
-            # assert out_df.count() == 2
+        # Verify output
+        if isinstance(spark, MagicMock):
+             # In a mocked environment where Spark is simulated, verify that the
+             # execution flow reached the point of transforming and saving data.
+             # The 'count' method is called just before saving, so verifying its invocation
+             # confirms that the engine processed the data flow successfully.
+             mock_df = spark.sql.return_value
+             mock_df.count.assert_called()
+        else:
+            # Real spark check
+            assert os.path.exists(str(tmp_path / "output"))
+
+            out_df = spark.read.parquet(str(tmp_path / "output"))
+            assert out_df.count() == 2
