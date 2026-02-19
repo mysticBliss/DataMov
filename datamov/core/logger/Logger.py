@@ -29,7 +29,6 @@ class Logger:
             ch.setFormatter(formatter)
             self.logger.addHandler(ch)
 
-        self.config = {}
         self._initialized = True
 
     def get_logger(self) -> logging.Logger:
@@ -43,6 +42,3 @@ class Logger:
 
     def set_log_level(self, log_level: int) -> None:
         self.logger.setLevel(log_level)
-
-    def add_config(self, key: str, value: Any) -> None:
-        self.config[key] = value
