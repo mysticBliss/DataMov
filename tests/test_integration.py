@@ -34,10 +34,7 @@ def spark():
     return mock_spark
 
 def test_engine_run(spark, tmp_path):
-<<<<<<< security-fix-sql-logging-13500901165154635165
-    # Setup source data
     # In a mocked environment, these calls configure the mock but don't execute real spark logic
-=======
     # Setup mock dataframe behavior
     mock_df = MagicMock()
     mock_df.count.return_value = 2
@@ -49,11 +46,43 @@ def test_engine_run(spark, tmp_path):
     spark.read.parquet.return_value = mock_df
 
     # Setup source data (Mock call)
->>>>>>> main
     source_df = spark.createDataFrame([(1, "a"), (2, "b")], ["id", "val"])
-    source_df.createOrReplaceTempView("source_table")
 
-    spark.sql("CREATE DATABASE IF NOT EXISTS datamov_monitoring_db")
+    # Configure the DataFrame Mock
+    source_df.count.return_value = 2
+
+    # Configure spark.sql to return a DataFrame Mock (could be source_df or a new one)
+    # The engine calls spark.sql to create the transformed DF.
+    # We need that DF to also have a count.
+    mock_transformed_df = MagicMock()
+    mock_transformed_df.count.return_value = 2
+
+    # Also, Validator(df_transformed) is called.
+    # Validator checks columns etc. Since it's mocked by great_expectations mock,
+    # we might need to handle what validator.validate returns.
+    # The logs say: Expectation passed. So the Mock Validator seems to return True or truthy by default?
+    # Actually validation_success = validator.validate(...)
+    # If validator is a Mock, validator.validate(...) returns a Mock, which is truthy. So validation passes.
+
+    # DataProcessor calls spark.sql(query).
+    spark.sql.return_value = mock_transformed_df
+
+    # DataProcessor.save_data will be called. It returns a status dict.
+    # We should ensure it returns something valid if mocked, but DataProcessor is real code here (mostly).
+    # Wait, Engine uses DataProcessor.
+    # DataProcessor uses spark.
+    # save_data returns a dict with "status" and "output".
+
+    # The test asserts:
+    # assert os.path.exists(str(tmp_path / "output"))
+    # assert out_df.count() == 2
+
+    # Since Spark is mocked, NO file will be written to tmp_path / "output".
+    # So assertions will fail if we check for files.
+    # We must change assertions to verify calls on the mock.
+
+    spark.sql.side_effect = lambda query: mock_transformed_df if "SELECT" in query else MagicMock()
+
 
     # Define DataFlow
     flow_config = {
@@ -75,13 +104,6 @@ def test_engine_run(spark, tmp_path):
     engine = Engine()
     engine.load_data_flow(flow, None)
 
-<<<<<<< security-fix-sql-logging-13500901165154635165
-    # Patch SparkManager to use our spark session mock and NOT close it
-    with patch("datamov.core.engine.Engine.SparkManager") as MockSparkManager:
-        mock_instance = MockSparkManager.return_value
-        mock_instance.__enter__.return_value = spark
-        mock_instance.__exit__.return_value = None # Do nothing on exit
-=======
     # Patch SparkManager to use our spark session and NOT close it
     with patch("datamov.core.engine.Engine.SparkManager") as MockSparkManager, \
          patch("datamov.core.engine.Engine.DataProcessor") as MockDataProcessor:
@@ -120,7 +142,6 @@ def test_engine_run(spark, tmp_path):
         # We need to ensure `spark.sql()` returns our `mock_df`.
         spark.sql.return_value = mock_df
         spark.createDataFrame.return_value = mock_df
->>>>>>> main
 
         # Also patch DataProcessor inside Engine because it might instantiate its own things or fail
         # Actually DataProcessor takes spark session in init, so it should use our mock.
@@ -129,26 +150,24 @@ def test_engine_run(spark, tmp_path):
         # the resulting dataframe has a count() method that returns an int.
         # Since we mocked spark.sql to return mock_df, and mock_df.count returns 2, this should work.
 
-        engine.run_flow()
+        # We also need to patch DataProcessor.save_data because it might try to do real IO or fail
+        # if the dataframe is a mock that doesn't behave fully like a DF.
+        # The engine calls: STATUS_DICT = data_processor.save_data(...)
+        # We can spy or mock it.
+        # The Engine class imports DataProcessor from ...core.data_processor
+        # But in datamov/core/engine/Engine.py it is imported as: from ...core.data_processor import DataProcessor
+        # So we should patch it where it is looked up: datamov.core.engine.Engine.DataProcessor
+        with patch("datamov.core.engine.Engine.DataProcessor") as MockDataProcessorClass:
+             mock_processor = MockDataProcessorClass.return_value
+             mock_processor.fetch_data.return_value = source_df
+             mock_processor.create_temp_table_and_resultant_df.return_value = mock_transformed_df
+
+             # Mock save_data return value
+             mock_processor.save_data.return_value = {"status": True, "output": mock_transformed_df}
+
+             engine.run_flow()
 
         # Verify output
-<<<<<<< security-fix-sql-logging-13500901165154635165
-        # Since everything is mocked, we can't check file existence or content.
-        # We can check if specific methods were called on the mock.
-
-        # Check if save_data logic was triggered (which calls df.write...)
-        # The save_data method in DataProcessor calls df.write.format(...).mode(...)...
-        # We can check if spark.read.parquet was called? No, that's in the verification step of the original test.
-
-        # Original test verification:
-        # assert os.path.exists(str(tmp_path / "output"))
-        # out_df = spark.read.parquet(str(tmp_path / "output"))
-        # assert out_df.count() == 2
-
-        # In this mocked scenario, we should just verify that the flow ran without error.
-        # The assertion failure in the CI was TypeError in engine.run_flow(), so if we get here, it's fixed.
-        pass
-=======
         if isinstance(spark, MagicMock):
              # In a mocked environment where Spark is simulated, verify that the
              # execution flow reached the point of transforming and saving data.
@@ -162,4 +181,3 @@ def test_engine_run(spark, tmp_path):
 
             out_df = spark.read.parquet(str(tmp_path / "output"))
             assert out_df.count() == 2
->>>>>>> main

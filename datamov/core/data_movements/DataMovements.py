@@ -47,8 +47,8 @@ class EnvironmentConfig:
 class DataMovements:
     def __init__(self, active_only: bool = False):
         self.configs = ConfigReader()
-        self.data_movements: Dict[str, DataFlow] = {}
-        self.environments: Dict[str, EnvironmentConfig] = {}
+        self._data_movements: Dict[str, DataFlow] = {}
+        self._environments: Dict[str, EnvironmentConfig] = {}
         self.active_only = active_only
         self.load_configs()
 
@@ -89,9 +89,9 @@ class DataMovements:
                 self.environments[environment.environment] = environment
 
     @property
-    def get_data_movements(self) -> Dict[str, DataFlow]:
-        return self.data_movements
+    def data_movements(self) -> Dict[str, DataFlow]:
+        return self._data_movements
 
     @property
-    def get_environment_configs(self) -> Dict[str, EnvironmentConfig]:
-        return self.environments
+    def environment_configs(self) -> Dict[str, EnvironmentConfig]:
+        return self._environments
