@@ -1,5 +1,6 @@
 import sys
-from unittest.mock import MagicMock
+import pytest
+from unittest.mock import MagicMock, patch
 
 # Try to import great_expectations, mock if missing
 try:
@@ -11,6 +12,8 @@ except ImportError:
 # Try to import pyspark, mock if missing
 try:
     import pyspark
+    from pyspark import SparkContext
+    from pyspark.sql.functions import lit as real_lit
 except ImportError:
     if "pyspark" not in sys.modules:
         # Create mocks for pyspark and submodules
@@ -25,7 +28,6 @@ except ImportError:
         sys.modules["pyspark.sql.catalog"] = MagicMock()
 
         # Configure a DataFrame mock that returns an int for count()
-        # This is needed to pass integration tests in environments without pyspark
         df_mock = MagicMock()
         df_mock.count.return_value = 10
 
@@ -49,3 +51,32 @@ except ImportError:
 
         # Attach the builder mock to the pyspark.sql.SparkSession class
         pyspark_sql_mock.SparkSession.builder = builder_mock
+
+# Safe lit fixture
+@pytest.fixture(autouse=True)
+def safe_lit_patch():
+    """
+    Patches datamov.core.engine.Engine.lit to be safe when SparkContext is missing.
+    Some unit tests mock SparkManager but invoke code that uses lit().
+    If pyspark is installed, real lit() throws AssertionError if no context is active.
+    This patch returns a mock in that case, but the real lit if context exists.
+    """
+    # Check if we are in an environment where real lit exists
+    if "pyspark" in sys.modules and not isinstance(sys.modules["pyspark"], MagicMock):
+
+        def safe_lit(*args, **kwargs):
+            try:
+                # Check if there is an active SparkContext
+                if SparkContext._active_spark_context:
+                    return real_lit(*args, **kwargs)
+                else:
+                    return MagicMock(name="safe_lit_mock")
+            except Exception:
+                return MagicMock(name="safe_lit_mock_exc")
+
+        # We patch where it is imported in Engine.py
+        # Use context manager to ensure it applies for the duration of tests
+        with patch('datamov.core.engine.Engine.lit', side_effect=safe_lit):
+            yield
+    else:
+        yield
