@@ -6,9 +6,11 @@ from unittest.mock import MagicMock
 try:
     import pyspark
     # Try importing submodules to ensure they are working,
-    # as some environments might have a broken pyspark installation
+    # as some environments might have a broken pyspark installation.
+    # Specifically check for pyspark.testing as it caused issues in CI.
     import pyspark.sql
     import pyspark.sql.functions
+    import pyspark.testing
 except (ImportError, ModuleNotFoundError):
     # If pyspark is missing or broken, mock it
     sys.modules["pyspark"] = MagicMock()
