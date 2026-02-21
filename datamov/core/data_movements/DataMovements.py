@@ -75,7 +75,7 @@ class DataMovements:
                     continue
                 movement = DataFlow(**movement_data)
                 if movement.name:
-                    self.data_movements[movement.name] = movement
+                    self._data_movements[movement.name] = movement
 
     def _process_environment_config(self, filename: str, data: Dict[str, Any]) -> None:
         if 'environment_configs' not in data:
@@ -86,7 +86,7 @@ class DataMovements:
         if isinstance(environment_configs, list):
             for environment_data in environment_configs:
                 environment = EnvironmentConfig(**environment_data)
-                self.environments[environment.environment] = environment
+                self._environments[environment.environment] = environment
 
     def load_data_movements(self) -> None:
         """Deprecated: use load_configs instead."""

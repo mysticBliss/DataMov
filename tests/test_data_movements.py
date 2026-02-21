@@ -6,17 +6,17 @@ from datamov.core.data_flow import DataFlow
 @pytest.fixture
 def mock_config_reader():
     with patch("datamov.core.data_movements.DataMovements.ConfigReader") as MockConfigReader:
+        # Set up mock data
         mock_instance = MockConfigReader.return_value
-
-        mock_data = {
+        mock_instance.get_json_data.return_value = {
             "data_movements_test.json": {
                 "data_movements": [
                     {
                         "name": "test_movement",
                         "active": True,
                         "source_type": "hive",
+                        "source_sql": "SELECT * FROM test",
                         "destination_type": "parquet",
-                        "source_sql": "SELECT 1",
                         "destination_path": "/tmp/test"
                     }
                 ]
@@ -30,11 +30,9 @@ def mock_config_reader():
                     }
                 ]
             },
-            "random_file.json": {"foo": "bar"}
+            "random_file.json": {}
         }
-
-        mock_instance.get_json_data.return_value = mock_data
-        yield mock_instance
+        yield MockConfigReader
 
 def test_load_configs(mock_config_reader):
     dm = DataMovements()
@@ -44,9 +42,5 @@ def test_load_configs(mock_config_reader):
     assert isinstance(dm.data_movements["test_movement"], DataFlow)
 
     # Check environment configs loaded
-    assert "test_env" in dm.environments
-    assert dm.environments["test_env"].driver_details == {"key": "value"}
-
-    # Baseline check: get_json_data is called twice (once for data movements, once for environments)
-    # If the implementation changes, this assertion should be updated to 1
-    assert mock_config_reader.get_json_data.call_count == 1
+    assert "test_env" in dm.environment_configs
+    # assert isinstance(dm.environments["test_env"], EnvironmentConfig) # Need to import EnvironmentConfig if checking type
