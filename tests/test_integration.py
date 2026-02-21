@@ -172,8 +172,7 @@ def test_engine_run(spark, tmp_path):
              # execution flow reached the point of transforming and saving data.
              # The 'count' method is called just before saving, so verifying its invocation
              # confirms that the engine processed the data flow successfully.
-             mock_df = spark.sql.return_value
-             mock_df.count.assert_called()
+                 mock_transformed_df.count.assert_called()
         else:
             # Real spark check
             assert os.path.exists(str(tmp_path / "output"))
