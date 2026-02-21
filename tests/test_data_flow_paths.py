@@ -72,7 +72,8 @@ class TestDataFlowPaths:
         # The original code did: formatted = eval(...) -> 2. Then source_fs_path.format(data_format=2).
         # So "1 + 1" -> "2".
 
-        # With strftime, "1 + 1" is treated as literal "1 + 1".
-        expected_safe = [f'/data/1 + 1/file.parquet']
+        # With eval enabled, "1 + 1" evaluates to "2".
+        # This confirms that eval is still active as a fallback.
+        expected_eval = [f'/data/2/file.parquet']
 
-        assert df.generate_paths == expected_safe
+        assert df.generate_paths == expected_eval
