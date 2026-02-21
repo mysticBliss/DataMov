@@ -73,61 +73,79 @@ class DataFlow:
 
     @property
     def generate_paths(self) -> List[str]:
-        if self.source_execution_date is None:
-            if self.source_frequency_value is None:
-                # If no frequency is provided, we can't generate date-based paths unless default behavior is needed.
-                # Returning empty list or maybe raising error?
-                # Original code would crash or behave weirdly.
-                return []
+        # If execution date is explicitly set, use it directly (as a string)
+        if self.source_execution_date is not None:
+            if self.source_fs_path:
+                return [self.source_fs_path.format(data_format=self.source_execution_date)]
+            return []
 
-            dates = self._generate_dates()
+        # If no frequency config, we can't generate date-based paths unless default behavior needed
+        if self.source_frequency_value is None:
+             return []
 
-            paths = []
-            optimized_format = None
+        dates = self._generate_dates()
+        paths = []
 
-            if self.source_data_format:
+        is_python_expr = False
+        optimized_format_str = None
+
+        if self.source_data_format:
+            # Check if it looks like a python expression involving dt
+            # This heuristic prevents executing random strings (like "1 + 1") as python code,
+            # effectively prioritizing "treat as string literal" unless "dt" is involved.
+            if "dt" in self.source_data_format:
+                is_python_expr = True
                 try:
+                    # Attempt AST parsing to optimize simple strftime calls
                     tree = ast.parse(self.source_data_format, mode='eval')
                     if isinstance(tree.body, ast.Call) and \
                        isinstance(tree.body.func, ast.Attribute) and \
                        tree.body.func.attr == 'strftime' and \
                        isinstance(tree.body.func.value, ast.Name) and \
                        tree.body.func.value.id == 'dt':
+
                         args = tree.body.args
                         if len(args) == 1:
                             if hasattr(ast, 'Constant') and isinstance(args[0], ast.Constant):
-                                optimized_format = args[0].value
-                            elif hasattr(ast, 'Str') and isinstance(args[0], ast.Str):
-                                optimized_format = args[0].s
+                                optimized_format_str = args[0].value # Python 3.8+
+                            elif isinstance(args[0], ast.Str):
+                                optimized_format_str = args[0].s # Python < 3.8
                 except Exception:
                     pass
 
-            for dt in dates:
-                if self.source_data_format:
-                    if optimized_format:
+        for dt in dates:
+            formatted = str(dt) # Default fallback
+
+            if self.source_data_format:
+                if is_python_expr:
+                    if optimized_format_str:
+                        # Fast path for recognized dt.strftime(...)
                         try:
-                            formatted = dt.strftime(optimized_format)
+                            formatted = dt.strftime(optimized_format_str)
                         except Exception as e:
-                            logger.warning("Failed to strftime source_data_format: {}. Error: {}".format(self.source_data_format, e))
+                            logger.warning("Failed to strftime optimized format: {}. Error: {}".format(optimized_format_str, e))
                             formatted = str(dt)
                     else:
-                        # Safe(r) eval
+                        # Fallback to eval for complex expressions
                         try:
-                            formatted = eval(self.source_data_format, {"dt": dt, "date": date, "timedelta": timedelta})
+                            # Use restricted scope for eval, but allow builtins (implicitly via empty dict)
+                            formatted = eval(self.source_data_format, {}, {"dt": dt, "date": date, "timedelta": timedelta})
                         except Exception as e:
                             logger.warning("Failed to eval source_data_format: {}. Error: {}".format(self.source_data_format, e))
                             formatted = str(dt)
                 else:
-                    formatted = str(dt)
+                    # Treat as direct strftime format string
+                    try:
+                        formatted = dt.strftime(self.source_data_format)
+                    except Exception as e:
+                         # If it fails (unlikely for strings), fallback
+                         logger.warning("Failed to use source_data_format as strftime: {}. Error: {}".format(self.source_data_format, e))
+                         pass
 
-                if self.source_fs_path:
-                    paths.append(self.source_fs_path.format(data_format=formatted))
-            return paths
-
-        else:
             if self.source_fs_path:
-                return [self.source_fs_path.format(data_format=self.source_execution_date)]
-            return []
+                paths.append(self.source_fs_path.format(data_format=formatted))
+
+        return paths
 
     def __repr__(self) -> str:
         return "{}({})".format(
