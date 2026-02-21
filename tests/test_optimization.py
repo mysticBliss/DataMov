@@ -3,14 +3,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 from datetime import date, timedelta
 
-# Mock dependencies
-sys.modules["pyspark"] = MagicMock()
-sys.modules["pyspark.sql"] = MagicMock()
-sys.modules["pyspark.sql.utils"] = MagicMock()
-sys.modules["pyspark.sql.functions"] = MagicMock()
-sys.modules["pyspark.sql.types"] = MagicMock()
-sys.modules["great_expectations"] = MagicMock()
-sys.modules["great_expectations.dataset"] = MagicMock()
+# Mock dependencies are handled in conftest.py or not needed for DataFlow unit tests
+# if DataFlow imports don't trigger pyspark import (they don't).
+# Removing module-level sys.modules modification to avoid side effects on other tests.
 
 from datamov.core.data_flow.DataFlow import DataFlow
 
