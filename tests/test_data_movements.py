@@ -44,9 +44,15 @@ def test_load_configs(mock_config_reader):
     assert isinstance(dm.data_movements["test_movement"], DataFlow)
 
     # Check environment configs loaded
-    assert "test_env" in dm.environments
-    assert dm.environments["test_env"].driver_details == {"key": "value"}
+    assert "test_env" in dm.environment_configs
+    assert dm.environment_configs["test_env"].driver_details == {"key": "value"}
 
     # Baseline check: get_json_data is called twice (once for data movements, once for environments)
     # If the implementation changes, this assertion should be updated to 1
     assert mock_config_reader.get_json_data.call_count == 1
+
+def test_load_data_movements_deprecated(mock_config_reader):
+    dm = DataMovements()
+    with patch.object(dm, 'load_configs') as mock_load_configs:
+        dm.load_data_movements()
+        mock_load_configs.assert_called_once()

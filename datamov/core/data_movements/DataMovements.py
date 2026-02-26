@@ -86,7 +86,7 @@ class DataMovements:
         if isinstance(environment_configs, list):
             for environment_data in environment_configs:
                 environment = EnvironmentConfig(**environment_data)
-                self.environments[environment.environment] = environment
+                self._environments[environment.environment] = environment
 
     def load_data_movements(self) -> None:
         """Deprecated: use load_configs instead."""
