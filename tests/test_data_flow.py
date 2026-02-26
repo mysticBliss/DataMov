@@ -108,3 +108,12 @@ class TestGeneratePaths:
         expected_str = expected_date.strftime('%Y%m%d')
 
         assert paths == ["/data/{}".format(expected_str)]
+
+    def test_generate_paths_invalid_unit(self):
+        df = DataFlow(
+            source_frequency_unit='invalid_unit',
+            source_frequency_value=1,
+            source_fs_path="/data/{data_format}"
+        )
+        with pytest.raises(ValueError, match="Invalid frequency unit provided"):
+            _ = df.generate_paths
