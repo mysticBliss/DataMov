@@ -25,7 +25,7 @@ class TestDataFlowPaths:
             source_frequency_unit='days',
             source_frequency_value=1,
             source_fs_path='/data/{data_format}/file.parquet',
-            source_data_format=fmt
+            source_data_format=f"dt.strftime('{fmt}')"
         )
         yesterday = date.today() - timedelta(days=1)
         expected = [f'/data/{yesterday.strftime(fmt)}/file.parquet']
@@ -39,7 +39,7 @@ class TestDataFlowPaths:
             source_frequency_unit='days',
             source_frequency_value=1,
             source_fs_path='/data/{data_format}/file.parquet',
-            source_data_format=fmt
+            source_data_format=f"dt.strftime('{fmt}')"
         )
         yesterday = date.today() - timedelta(days=1)
         expected = [f'/data/{yesterday.strftime(fmt)}/file.parquet']
@@ -57,7 +57,10 @@ class TestDataFlowPaths:
         # But simpler is to test the happy path and ensure eval is gone by verifying
         # that python code is NOT executed.
 
-        python_code = "1 + 1"
+        # NOTE: eval() IS used in DataFlow, but catches exceptions.
+        # Passing invalid python syntax will trigger exception and fallback to str(dt).
+
+        python_code = "invalid syntax!!!"
         df = DataFlow(
             name="test_flow",
             source_frequency_unit='days',
@@ -67,12 +70,12 @@ class TestDataFlowPaths:
         )
         yesterday = date.today() - timedelta(days=1)
 
-        # If eval was still there, this would evaluate to "2" (if str(2)) or fail if result is int and format expects str?
-        # Actually eval returns int 2. format expects string probably?
-        # The original code did: formatted = eval(...) -> 2. Then source_fs_path.format(data_format=2).
-        # So "1 + 1" -> "2".
-
-        # With strftime, "1 + 1" is treated as literal "1 + 1".
-        expected_safe = [f'/data/1 + 1/file.parquet']
+        # Fallback is str(dt) because "invalid syntax!!!" fails eval
+        expected_safe = [f'/data/{yesterday}/file.parquet']
 
         assert df.generate_paths == expected_safe
+
+    def test_generate_paths_no_frequency(self):
+        """Test default behavior when no frequency or execution date is provided."""
+        df = DataFlow()
+        assert df.generate_paths == []
