@@ -38,8 +38,8 @@ class EnvironmentConfig:
             str: A formatted string representation of the EnvironmentConfig instance.
         """
 
-        return "EnvironmentConfig(environment={}, driver_details={}, kudu_masters={})".format(
-            self.environment, self.driver_details, self.kudu_masters
+        return "EnvironmentConfig(environment={}, driver_details=<REDACTED>, kudu_masters={})".format(
+            self.environment, self.kudu_masters
         )
 
 
