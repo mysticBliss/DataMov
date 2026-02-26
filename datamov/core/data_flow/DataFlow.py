@@ -111,12 +111,19 @@ class DataFlow:
                             logger.warning("Failed to strftime source_data_format: {}. Error: {}".format(self.source_data_format, e))
                             formatted = str(dt)
                     else:
-                        # Safe(r) eval
-                        try:
-                            formatted = eval(self.source_data_format, {"dt": dt, "date": date, "timedelta": timedelta})
-                        except Exception as e:
-                            logger.warning("Failed to eval source_data_format: {}. Error: {}".format(self.source_data_format, e))
-                            formatted = str(dt)
+                        # If format string contains '(', treat as python expression, otherwise simple strftime
+                        if '(' in self.source_data_format:
+                            try:
+                                formatted = eval(self.source_data_format, {"dt": dt, "date": date, "timedelta": timedelta})
+                            except Exception as e:
+                                logger.warning("Failed to eval source_data_format: {}. Error: {}".format(self.source_data_format, e))
+                                formatted = str(dt)
+                        else:
+                            try:
+                                formatted = dt.strftime(self.source_data_format)
+                            except Exception as e:
+                                logger.warning("Failed to strftime source_data_format: {}. Error: {}".format(self.source_data_format, e))
+                                formatted = str(dt)
                 else:
                     formatted = str(dt)
 
