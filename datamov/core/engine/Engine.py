@@ -165,8 +165,6 @@ class Engine:
 
                             df_tracking = spark.createDataFrame([tuple(values)], schema=keys)
 
-                            df_tracking.select('dm_etl_uuid', 'load_status').show()
-
                             data_processor.save_data(
                                 df=df_tracking,
                                 destination_path=None,
@@ -176,8 +174,8 @@ class Engine:
                                 table_name="datamov_monitoring_db.t_etl_flow_tracker",
                                 partition_cols=[]
                             )
-                        except Exception as e:
-                            logger.error("Failed to save tracking info: {}".format(e))
+                        except Exception:
+                            logger.error("Failed to save tracking info", exc_info=True)
 
                     else:
                         logger.warning(
