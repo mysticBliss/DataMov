@@ -104,8 +104,12 @@ def test_engine_run(spark, tmp_path):
     engine.load_data_flow(flow, None)
 
     # Patch SparkManager to use our spark session and NOT close it
+    # Also patch lit to avoid pyspark import issues in mocked environment
     with patch("datamov.core.engine.Engine.SparkManager") as MockSparkManager, \
-         patch("datamov.core.engine.Engine.DataProcessor") as MockDataProcessor:
+         patch("datamov.core.engine.Engine.DataProcessor") as MockDataProcessor, \
+         patch("datamov.core.engine.Engine.lit") as MockLit:
+
+        MockLit.return_value = MagicMock()
 
         # Ensure mocked spark.sql returns a DataFrame with a count() method that returns an int
         # This is necessary when running in an environment where pyspark is mocked
@@ -170,10 +174,14 @@ def test_engine_run(spark, tmp_path):
         if isinstance(spark, MagicMock):
              # In a mocked environment where Spark is simulated, verify that the
              # execution flow reached the point of transforming and saving data.
-             # The 'count' method is called just before saving, so verifying its invocation
-             # confirms that the engine processed the data flow successfully.
-             mock_df = spark.sql.return_value
-             mock_df.count.assert_called()
+                 # Since DataProcessor is mocked, spark.sql() is NOT called.
+                 # Instead, Engine calls methods on the mock objects returned by DataProcessor.
+                 # Engine calls df_transformed.count() for tracking.
+                 # df_transformed is mock_transformed_df.
+                 mock_transformed_df.count.assert_called()
+
+                 # Also verify save_data was called
+                 mock_processor.save_data.assert_called()
         else:
             # Real spark check
             assert os.path.exists(str(tmp_path / "output"))
