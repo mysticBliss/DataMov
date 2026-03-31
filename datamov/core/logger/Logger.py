@@ -29,7 +29,8 @@ class Logger:
             ch.setFormatter(formatter)
             self.logger.addHandler(ch)
 
-        self.config = {}
+        if not hasattr(self, 'config'):
+            self.config = {}
         self._initialized = True
 
     def get_logger(self) -> logging.Logger:
@@ -45,4 +46,6 @@ class Logger:
         self.logger.setLevel(log_level)
 
     def add_config(self, key: str, value: Any) -> None:
+        if not hasattr(self, 'config'):
+            self.config = {}
         self.config[key] = value

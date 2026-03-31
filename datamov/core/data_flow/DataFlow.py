@@ -116,7 +116,11 @@ class DataFlow:
                             formatted = eval(self.source_data_format, {"dt": dt, "date": date, "timedelta": timedelta})
                         except Exception as e:
                             logger.warning("Failed to eval source_data_format: {}. Error: {}".format(self.source_data_format, e))
-                            formatted = str(dt)
+                            # Try interpreting as direct strftime format
+                            try:
+                                formatted = dt.strftime(self.source_data_format)
+                            except Exception:
+                                formatted = str(dt)
                 else:
                     formatted = str(dt)
 
