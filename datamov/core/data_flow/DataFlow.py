@@ -86,21 +86,24 @@ class DataFlow:
             optimized_format = None
 
             if self.source_data_format:
-                try:
-                    tree = ast.parse(self.source_data_format, mode='eval')
-                    if isinstance(tree.body, ast.Call) and \
-                       isinstance(tree.body.func, ast.Attribute) and \
-                       tree.body.func.attr == 'strftime' and \
-                       isinstance(tree.body.func.value, ast.Name) and \
-                       tree.body.func.value.id == 'dt':
-                        args = tree.body.args
-                        if len(args) == 1:
-                            if hasattr(ast, 'Constant') and isinstance(args[0], ast.Constant):
-                                optimized_format = args[0].value
-                            elif hasattr(ast, 'Str') and isinstance(args[0], ast.Str):
-                                optimized_format = args[0].s
-                except Exception:
-                    pass
+                if '(' not in self.source_data_format:
+                    optimized_format = self.source_data_format
+                else:
+                    try:
+                        tree = ast.parse(self.source_data_format, mode='eval')
+                        if isinstance(tree.body, ast.Call) and \
+                        isinstance(tree.body.func, ast.Attribute) and \
+                        tree.body.func.attr == 'strftime' and \
+                        isinstance(tree.body.func.value, ast.Name) and \
+                        tree.body.func.value.id == 'dt':
+                            args = tree.body.args
+                            if len(args) == 1:
+                                if hasattr(ast, 'Constant') and isinstance(args[0], ast.Constant):
+                                    optimized_format = args[0].value
+                                elif hasattr(ast, 'Str') and isinstance(args[0], ast.Str):
+                                    optimized_format = args[0].s
+                    except Exception:
+                        pass
 
             for dt in dates:
                 if self.source_data_format:
