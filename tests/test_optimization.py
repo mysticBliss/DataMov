@@ -27,7 +27,7 @@ class TestOptimization:
         df = DataFlow(**config)
 
         # Patch eval to track calls
-        with patch('builtins.eval', wraps=eval) as mock_eval:
+        with patch.object(df, '_safe_eval', wraps=df._safe_eval) as mock_eval:
             paths = df.generate_paths
 
             # Verify result
@@ -69,7 +69,7 @@ class TestOptimization:
         }
         df = DataFlow(**config)
 
-        with patch('builtins.eval', wraps=eval) as mock_eval:
+        with patch.object(df, '_safe_eval', wraps=df._safe_eval) as mock_eval:
             paths = df.generate_paths
 
             today = date.today()
