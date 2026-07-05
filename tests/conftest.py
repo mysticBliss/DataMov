@@ -13,6 +13,8 @@ except ImportError:
         sys.modules["pyspark.sql.types"] = MagicMock()
         sys.modules["pyspark.sql.utils"] = MagicMock()
         sys.modules["pyspark.sql.catalog"] = MagicMock()
+        sys.modules["pyspark.testing"] = MagicMock()
+        sys.modules["pyspark.testing.utils"] = MagicMock()
 
 if "great_expectations" not in sys.modules:
     sys.modules["great_expectations"] = MagicMock()

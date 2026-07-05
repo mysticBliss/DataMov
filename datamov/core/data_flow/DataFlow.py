@@ -113,10 +113,22 @@ class DataFlow:
                     else:
                         # Safe(r) eval
                         try:
-                            formatted = eval(self.source_data_format, {"dt": dt, "date": date, "timedelta": timedelta})
+                            if any(x in self.source_data_format for x in ['dt', 'date', 'timedelta']):
+                                formatted = eval(self.source_data_format, {"dt": dt, "date": date, "timedelta": timedelta})
+                            else:
+                                if '%' in self.source_data_format:
+                                    formatted = dt.strftime(self.source_data_format)
+                                else:
+                                    formatted = self.source_data_format
                         except Exception as e:
+                            if '%' in self.source_data_format:
+                                try:
+                                    formatted = dt.strftime(self.source_data_format)
+                                except Exception:
+                                    formatted = self.source_data_format
+                            else:
+                                formatted = self.source_data_format
                             logger.warning("Failed to eval source_data_format: {}. Error: {}".format(self.source_data_format, e))
-                            formatted = str(dt)
                 else:
                     formatted = str(dt)
 
