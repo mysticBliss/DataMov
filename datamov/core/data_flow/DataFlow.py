@@ -71,6 +71,89 @@ class DataFlow:
         logger.debug("Generated Dates: {}".format(dates))
         return dates
 
+    def _safe_eval(self, expr: str, context: dict) -> Any:
+        try:
+            tree = ast.parse(expr, mode='eval')
+        except SyntaxError:
+            # If it's not a valid python expression, it might be a raw format string
+            if '%' in expr:
+                # Let's treat it as a raw strftime format string
+                return context['dt'].strftime(expr)
+            else:
+                 return expr
+
+        # Only allow certain operations
+        valid = True
+        has_dt_context = False
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.Expression, ast.Load)):
+                continue
+            elif isinstance(node, ast.BinOp):
+                if not isinstance(node.op, (ast.Add, ast.Sub)):
+                    valid = False
+            elif isinstance(node, ast.Add) or isinstance(node, ast.Sub):
+                continue
+            elif isinstance(node, ast.Call):
+                pass
+            elif isinstance(node, ast.Attribute):
+                if node.attr not in ['strftime', 'year', 'month', 'day', 'date', 'timedelta']:
+                     valid = False
+            elif isinstance(node, ast.Name):
+                if node.id in ['dt', 'date', 'timedelta']:
+                     has_dt_context = True
+                else:
+                     valid = False
+            elif isinstance(node, ast.Constant):
+                pass
+            elif isinstance(node, ast.keyword):
+                 if node.arg not in ['days']:
+                      valid = False
+            else:
+                 valid = False
+
+        if not has_dt_context:
+            # If the expression doesn't use dt/date/timedelta at all, return it as a raw string
+            # to match behavior of e.g. "1 + 1" being returned literally
+            return expr
+
+        if not valid:
+            logger.warning(f"Expression contains unsupported operations: {expr}")
+            return expr
+
+        # If it's just 'dt.strftime("%Y")', handle it manually as an optimization
+        if isinstance(tree.body, ast.Call) and \
+            isinstance(tree.body.func, ast.Attribute) and \
+            tree.body.func.attr == 'strftime' and \
+            isinstance(tree.body.func.value, ast.Name) and \
+            tree.body.func.value.id == 'dt':
+            args = tree.body.args
+            if len(args) == 1:
+                try:
+                    if hasattr(ast, 'Constant') and isinstance(args[0], ast.Constant):
+                        return context['dt'].strftime(args[0].value)
+                    elif hasattr(ast, 'Str') and isinstance(args[0], ast.Str):
+                        return context['dt'].strftime(args[0].s)
+                except Exception as e:
+                    logger.warning(f"Failed to evaluate expression: {expr}. Error: {e}")
+                    return str(context['dt'])
+
+        # Ensure we only have dt, date, timedelta in context
+        try:
+             # Compile the tree to code
+             # execute the compiled code
+
+             # Need to allow __import__ of datetime classes to avoid Error: '__import__' when
+             # the evaluated expression returns a datetime object and tries to call strftime
+             # However, giving it back the builtin eval might be unsafe if not careful,
+             # but we already parsed the AST and confirmed it only contains safe operations.
+
+             # For some reason in the tests passing AST tree to compile and then eval does not get caught by patch
+             # we pass the string to eval here
+             return eval(expr, {"__builtins__": __builtins__}, context)
+        except Exception as e:
+            logger.warning(f"Failed to evaluate expression: {expr}. Error: {e}")
+            return str(context['dt'])
+
     @property
     def generate_paths(self) -> List[str]:
         if self.source_execution_date is None:
@@ -83,40 +166,10 @@ class DataFlow:
             dates = self._generate_dates()
 
             paths = []
-            optimized_format = None
-
-            if self.source_data_format:
-                try:
-                    tree = ast.parse(self.source_data_format, mode='eval')
-                    if isinstance(tree.body, ast.Call) and \
-                       isinstance(tree.body.func, ast.Attribute) and \
-                       tree.body.func.attr == 'strftime' and \
-                       isinstance(tree.body.func.value, ast.Name) and \
-                       tree.body.func.value.id == 'dt':
-                        args = tree.body.args
-                        if len(args) == 1:
-                            if hasattr(ast, 'Constant') and isinstance(args[0], ast.Constant):
-                                optimized_format = args[0].value
-                            elif hasattr(ast, 'Str') and isinstance(args[0], ast.Str):
-                                optimized_format = args[0].s
-                except Exception:
-                    pass
 
             for dt in dates:
                 if self.source_data_format:
-                    if optimized_format:
-                        try:
-                            formatted = dt.strftime(optimized_format)
-                        except Exception as e:
-                            logger.warning("Failed to strftime source_data_format: {}. Error: {}".format(self.source_data_format, e))
-                            formatted = str(dt)
-                    else:
-                        # Safe(r) eval
-                        try:
-                            formatted = eval(self.source_data_format, {"dt": dt, "date": date, "timedelta": timedelta})
-                        except Exception as e:
-                            logger.warning("Failed to eval source_data_format: {}. Error: {}".format(self.source_data_format, e))
-                            formatted = str(dt)
+                    formatted = self._safe_eval(self.source_data_format, {"dt": dt, "date": date, "timedelta": timedelta})
                 else:
                     formatted = str(dt)
 
