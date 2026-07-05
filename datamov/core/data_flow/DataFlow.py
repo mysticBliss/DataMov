@@ -71,44 +71,6 @@ class DataFlow:
         logger.debug("Generated Dates: {}".format(dates))
         return dates
 
-    def _safe_eval(self, expr: str, context: Dict[str, Any]) -> Any:
-        try:
-            tree = ast.parse(expr, mode='eval')
-        except SyntaxError:
-            raise ValueError(f"Invalid syntax in date expression: {expr}")
-
-        def _eval(node):
-            if isinstance(node, ast.Expression):
-                return _eval(node.body)
-            elif isinstance(node, ast.BinOp):
-                left = _eval(node.left)
-                right = _eval(node.right)
-                if isinstance(node.op, ast.Add):
-                    return left + right
-                elif isinstance(node.op, ast.Sub):
-                    return left - right
-                raise ValueError(f"Unsupported operation: {type(node.op)}")
-            elif isinstance(node, ast.Call):
-                func = _eval(node.func)
-                args = [_eval(arg) for arg in node.args]
-                kwargs = {kw.arg: _eval(kw.value) for kw in node.keywords}
-                return func(*args, **kwargs)
-            elif isinstance(node, ast.Attribute):
-                value = _eval(node.value)
-                if node.attr in ['strftime', 'year', 'month', 'day', 'date', 'timedelta']:
-                    return getattr(value, node.attr)
-                raise ValueError(f"Unsupported attribute: {node.attr}")
-            elif isinstance(node, ast.Name):
-                if node.id in context:
-                    return context[node.id]
-                raise ValueError(f"Unsupported name: {node.id}")
-            elif isinstance(node, ast.Constant):
-                return node.value
-            else:
-                raise ValueError(f"Unsupported node type: {type(node)}")
-
-        return _eval(tree.body)
-
     @property
     def generate_paths(self) -> List[str]:
         if self.source_execution_date is None:
@@ -149,25 +111,24 @@ class DataFlow:
                             logger.warning("Failed to strftime source_data_format: {}. Error: {}".format(self.source_data_format, e))
                             formatted = str(dt)
                     else:
-                        # Safe(r) eval or raw strftime
+                        # Safe(r) eval
                         try:
                             if any(x in self.source_data_format for x in ['dt', 'date', 'timedelta']):
-                                formatted = self._safe_eval(self.source_data_format, {"dt": dt, "date": date, "timedelta": timedelta})
+                                formatted = eval(self.source_data_format, {"dt": dt, "date": date, "timedelta": timedelta})
                             else:
                                 if '%' in self.source_data_format:
                                     formatted = dt.strftime(self.source_data_format)
                                 else:
                                     formatted = self.source_data_format
-                        except Exception as eval_e:
+                        except Exception as e:
                             if '%' in self.source_data_format:
                                 try:
                                     formatted = dt.strftime(self.source_data_format)
                                 except Exception:
-                                    logger.warning("Failed to eval or strftime source_data_format: {}. Error: {}".format(self.source_data_format, eval_e))
-                                    formatted = str(dt)
+                                    formatted = self.source_data_format
                             else:
-                                logger.warning("Failed to eval source_data_format: {}. Error: {}".format(self.source_data_format, eval_e))
                                 formatted = self.source_data_format
+                            logger.warning("Failed to eval source_data_format: {}. Error: {}".format(self.source_data_format, e))
                 else:
                     formatted = str(dt)
 
